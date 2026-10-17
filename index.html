@@ -1,1 +1,204 @@
-占位，稍后替换
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0b0d12">
+<title>火影塔罗占卜</title>
+<style>
+:root{--bg:#0b0d12;--card:#161a22;--line:#2a3040;--fg:#e9edf5;--muted:#8b93a5;--gold:#e5c158;--purple:#8b5cf6}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,"PingFang SC",sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:calc(env(safe-area-inset-top,0px) + 20px) 18px calc(env(safe-area-inset-bottom,0px) + 30px)}
+.wrap{width:100%;max-width:480px;display:flex;flex-direction:column;align-items:center}
+.title{font-size:24px;font-weight:700;color:var(--gold);text-shadow:0 0 10px rgba(229,193,88,0.3);margin-bottom:8px;letter-spacing:2px}
+.subtitle{font-size:13px;color:var(--muted);margin-bottom:24px}
+
+/* 占卜说明区 */
+.setup{width:100%;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:20px;transition:opacity .3s}
+.setup.hide{display:none}
+.input-group{display:flex;flex-direction:column;gap:12px;margin-bottom:16px}
+.input-group label{font-size:14px;color:var(--gold)}
+.input-group input{background:#0f1319;border:1px solid var(--line);border-radius:10px;padding:14px;color:#fff;font-size:15px;outline:none}
+.input-group input:focus{border-color:var(--purple)}
+.spread-select{display:flex;gap:10px;margin-bottom:20px}
+.spread-btn{flex:1;padding:12px;border:1px solid var(--line);background:#0f1319;color:var(--muted);border-radius:10px;font-size:14px;cursor:pointer;transition:all .2s}
+.spread-btn.active{border-color:var(--purple);color:#fff;background:rgba(139,92,246,0.1);box-shadow:0 0 10px rgba(139,92,246,0.2)}
+.main-btn{width:100%;padding:16px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);border:0;border-radius:12px;color:#fff;font-size:16px;font-weight:600;letter-spacing:1px;box-shadow:0 4px 15px rgba(139,92,246,0.4);cursor:pointer}
+.main-btn:active{transform:scale(.98)}
+
+/* 抽牌区 */
+.draw-area{width:100%;display:none;flex-direction:column;align-items:center}
+.draw-area.show{display:flex}
+.deck{width:120px;height:200px;background:linear-gradient(135deg,#1a1c29,#0d0e15);border:2px solid var(--gold);border-radius:12px;margin:20px auto;position:relative;cursor:pointer;box-shadow:0 0 20px rgba(229,193,88,0.2);transition:transform .2s}
+.deck::before{content:'🔮';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:40px;opacity:0.8}
+.deck:active{transform:scale(0.95)}
+.deck.shuffling{animation:shake 0.5s infinite}
+@keyframes shake{0%{transform:rotate(0deg)}25%{transform:rotate(5deg)}75%{transform:rotate(-5deg)}100%{transform:rotate(0deg)}}
+
+.cards-container{display:flex;gap:16px;justify-content:center;margin-top:20px;perspective:1000px;flex-wrap:wrap}
+.tarot-card{width:120px;height:200px;position:relative;cursor:pointer;transform-style:preserve-3d;transition:transform 0.8s cubic-bezier(0.175,0.885,0.32,1.275)}
+.tarot-card.flipped{transform:rotateY(180deg)}
+.card-face{position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:12px;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,0.5)}
+.card-back{background:linear-gradient(135deg,#1a1c29,#0d0e15);border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:40px}
+.card-front{background:#fff;transform:rotateY(180deg);display:flex;flex-direction:column}
+.card-front img{width:100%;height:160px;object-fit:cover;object-position:top}
+.card-front .name{height:40px;background:#161a22;color:var(--gold);font-size:13px;display:flex;align-items:center;justify-content:center;font-weight:bold;padding:0 5px;text-align:center;line-height:1.2}
+.card-front.reverse img{transform:rotate(180deg)}
+
+/* 解读区 */
+.result-area{width:100%;margin-top:30px;display:none}
+.result-area.show{display:block}
+.meaning{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:8px;padding:16px;margin-bottom:16px;animation:fadeInUp 0.5s ease both}
+.meaning h3{color:var(--gold);font-size:16px;margin:0 0 8px 0;display:flex;justify-content:space-between}
+.meaning h3 span{font-size:12px;color:var(--muted);font-weight:normal}
+.meaning p{font-size:14px;line-height:1.6;color:#d0d7e5;margin:0}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+.reset-btn{width:100%;padding:14px;background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:12px;margin-top:20px;font-size:15px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title">火影塔罗</div>
+  <div class="subtitle">深呼吸，在心中默念你的问题</div>
+
+  <div class="setup" id="setup">
+    <div class="input-group">
+      <label>你的问题（选填）</label>
+      <input type="text" id="question" placeholder="例如：我最近的事业运势如何？">
+    </div>
+    <div class="input-group">
+      <label>选择牌阵</label>
+      <div class="spread-select">
+        <button class="spread-btn active" onclick="setSpread(1, this)">单张指引</button>
+        <button class="spread-btn" onclick="setSpread(3, this)">三张牌阵</button>
+      </div>
+    </div>
+    <button class="main-btn" onclick="startDivination()">开始洗牌</button>
+  </div>
+
+  <div class="draw-area" id="drawArea">
+    <div class="deck shuffling" id="deck" onclick="drawCards()"></div>
+    <p style="color:var(--muted);font-size:14px;margin-top:10px" id="drawTip">点击牌堆抽取</p>
+    <div class="cards-container" id="cardsContainer"></div>
+  </div>
+
+  <div class="result-area" id="resultArea"></div>
+</div>
+
+<script>
+const tarotData = [
+  { id: 0, name: "愚者 · 漩涡鸣人", pos: "充满无限可能的新开始，跟随内心的直觉去冒险。", rev: "行事过于鲁莽，缺乏计划，注意脚下的悬崖。" },
+  { id: 1, name: "魔术师 · 旗木卡卡西", pos: "你拥有实现目标的能力和资源，现在是行动的最佳时机。", rev: "能力被滥用，或者缺乏自信，准备不足。" },
+  { id: 2, name: "女祭司 · 日向雏田", pos: "倾听内心的声音，直觉会指引你，隐藏的真相即将浮出水面。", rev: "忽视直觉，被表象迷惑，内心感到焦虑。" },
+  { id: 3, name: "皇后 · 纲手", pos: "丰收与滋养，充满创造力，享受生活带来的美好。", rev: "过度依赖他人，或者感到缺乏关爱与创造力。" },
+  { id: 4, name: "皇帝 · 三代火影", pos: "稳定与秩序，需要建立规则，展现领导力和权威。", rev: "固执己见，滥用权力，或者缺乏纪律性。" },
+  { id: 5, name: "教皇 · 自来也", pos: "寻求传统智慧或长辈的指导，遵循规则与信仰。", rev: "打破常规，叛逆，或者受到错误观念的束缚。" },
+  { id: 6, name: "恋人 · 春野樱", pos: "面临重要的选择，关注人际关系，听从内心的渴望。", rev: "选择困难，关系失衡，价值观产生冲突。" },
+  { id: 7, name: "战车 · 宇智波佐助", pos: "凭借强大的意志力克服困难，勇往直前，获得胜利。", rev: "方向感缺失，被情绪控制，陷入困境。" },
+  { id: 8, name: "力量 · 李洛克", pos: "以柔克刚，用耐心和勇气克服内心的恐惧与挑战。", rev: "自我怀疑，缺乏勇气，或者用力过猛导致反效果。" },
+  { id: 9, name: "隐士 · 宇智波鼬", pos: "需要独处与反思，向内探索，寻找真理与指引。", rev: "过度封闭自我，感到孤独，或者拒绝接受帮助。" },
+  { id: 10, name: "命运之轮 · 佩恩", pos: "命运的转折点，好运降临，顺应变化，把握时机。", rev: "遭遇挫折，运气不佳，或者抗拒改变带来的痛苦。" },
+  { id: 11, name: "正义 · 日向宁次", pos: "因果循环，公平公正，你的付出会得到应有的回报。", rev: "遭受不公，逃避责任，或者判断失误。" },
+  { id: 12, name: "倒吊人 · 我爱罗", pos: "暂时的停滞，换一个角度看问题，牺牲会带来觉醒。", rev: "无谓的牺牲，固执己见，或者拖延不前。" },
+  { id: 13, name: "死神 · 志村团藏", pos: "旧的结束意味着新的开始，接受结束，勇敢蜕变。", rev: "抗拒改变，停滞不前，沉浸在过去的阴影中。" },
+  { id: 14, name: "节制 · 奈良鹿丸", pos: "保持平衡与耐心，合理调配资源，平稳过渡。", rev: "极端情绪，缺乏节制，生活节奏混乱。" },
+  { id: 15, name: "恶魔 · 大蛇丸", pos: "欲望与执念的束缚，面对内心的阴暗面，警惕诱惑。", rev: "摆脱束缚，重获自由，意识觉醒。" },
+  { id: 16, name: "塔 · 宇智波带土", pos: "突如其来的剧变，打破旧有结构，破坏后的重建。", rev: "避免了一场灾难，或者固执地维持摇摇欲坠的局面。" },
+  { id: 17, name: "星星 · 千手柱间", pos: "希望与疗愈，灵感涌现，充满对未来的憧憬和信心。", rev: "失去希望，感到绝望，或者好高骛远不切实际。" },
+  { id: 18, name: "月亮 · 宇智波斑", pos: "充满未知与迷惑，潜意识浮现，需要警惕谎言与幻觉。", rev: "真相大白，解开误会，释放内心的恐惧。" },
+  { id: 19, name: "太阳 · 波风水门", pos: "充满活力与成功，事情明朗，毫无保留地展现自我。", rev: "暂时的挫折，缺乏热情，或者过度自负导致盲目。" },
+  { id: 20, name: "审判 · 千手扉间", pos: "觉醒与重生，听到内心的呼唤，做出重要的决断。", rev: "逃避现实，拒绝反省，错失重生的机会。" },
+  { id: 21, name: "世界 · 迈特凯", pos: "圆满与完成，目标达成，青春的汗水结出最丰硕的果实。", rev: "未完成的遗憾，或者感到停滞不前，需要寻找新目标。" }
+];
+
+let currentSpread = 1;
+let drawnCards = [];
+
+function setSpread(num, btn) {
+  currentSpread = num;
+  document.querySelectorAll('.spread-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function startDivination() {
+  document.getElementById('setup').classList.add('hide');
+  const drawArea = document.getElementById('drawArea');
+  drawArea.classList.add('show');
+  
+  const deckEl = document.getElementById('deck');
+  deckEl.classList.add('shuffling');
+  document.getElementById('drawTip').innerText = "洗牌中...请保持专注";
+  
+  setTimeout(() => {
+    deckEl.classList.remove('shuffling');
+    document.getElementById('drawTip').innerText = `点击牌堆抽取 ${currentSpread} 张牌`;
+  }, 2000);
+}
+
+function drawCards() {
+  const tip = document.getElementById('drawTip');
+  if (tip.innerText.includes('洗牌')) return;
+  if (drawnCards.length > 0) return; 
+  
+  const shuffled = [...tarotData].sort(() => 0.5 - Math.random());
+  drawnCards = shuffled.slice(0, currentSpread);
+  
+  const container = document.getElementById('cardsContainer');
+  container.innerHTML = '';
+  
+  drawnCards.forEach((card, index) => {
+    const isReverse = Math.random() > 0.5;
+    
+    const cardDiv = document.createElement('div');
+    cardDiv.className = 'tarot-card';
+    setTimeout(() => cardDiv.classList.add('flipped'), 300 + index * 300);
+    
+    cardDiv.innerHTML = `
+      <div class="card-face card-back">🌌</div>
+      <div class="card-face card-front ${isReverse ? 'reverse' : ''}">
+        <img src="${card.id}.jpg" onerror="this.src='https://via.placeholder.com/120x160/161a22/e5c158?text=图片缺失'">
+        <div class="name">${card.name.split(' · ')[1]}</div>
+      </div>
+    `;
+    container.appendChild(cardDiv);
+    
+    setTimeout(() => showResult(card, isReverse, index), 600 + index * 300);
+  });
+  
+  document.getElementById('deck').style.display = 'none';
+  tip.innerText = "";
+}
+
+function showResult(card, isReverse, index) {
+  const resultArea = document.getElementById('resultArea');
+  resultArea.classList.add('show');
+  
+  const meaning = isReverse ? card.rev : card.pos;
+  const status = isReverse ? '逆位' : '正位';
+  
+  let posName = "";
+  if (currentSpread === 3) {
+    const names = ["过去", "现在", "未来"];
+    posName = `【${names[index]}】`;
+  }
+  
+  const div = document.createElement('div');
+  div.className = 'meaning';
+  div.innerHTML = `
+    <h3>${posName}${card.name.split(' · ')[1]} <span>${card.name.split(' · ')[0]} · ${status}</span></h3>
+    <p>${meaning}</p>
+  `;
+  resultArea.appendChild(div);
+  
+  if (index === currentSpread - 1) {
+    const btn = document.createElement('button');
+    btn.className = 'reset-btn';
+    btn.innerText = '重新占卜';
+    btn.onclick = () => location.reload();
+    resultArea.appendChild(btn);
+  }
+}
+</script>
+</body>
+</html>
